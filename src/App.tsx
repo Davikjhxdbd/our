@@ -3,7 +3,7 @@ import {
   LayoutDashboard, UserRound, Heart, CalendarDays,
   CheckSquare, Wallet, Target, House, Plane,
   Settings, Search, Bell, Plus, ArrowUpRight,
-  Clock3, Sparkles, Menu, X,
+  Clock3, Sparkles, Menu, X, Copy, UserPlus, Check,
   ChevronRight, CircleCheck, Zap, LogOut
 } from 'lucide-react'
 import { supabase } from './lib/supabase'
@@ -31,6 +31,8 @@ type Task = {
   done: boolean
 }
 
+type CoupleMember = { user_id: string; role: string }
+
 function formatTaskTime(value: string | null) {
   if (!value) return 'A definir'
   return new Intl.DateTimeFormat('pt-BR', {
@@ -47,6 +49,19 @@ function App({ onSignOut }: { onSignOut?: () => void }) {
   const [mobileOpen, setMobileOpen] = useState(false)
 
   const [search, setSearch] = useState('')
+
+  const [coupleId, setCoupleId] = useState<string | null>(null)
+  const [coupleName, setCoupleName] = useState('Nosso espaço')
+  const [coupleMembers, setCoupleMembers] = useState<CoupleMember[]>([])
+  const [currentUserId, setCurrentUserId] = useState('')
+  const [sharedTasks, setSharedTasks] = useState<Task[]>([])
+  const [sharedLoading, setSharedLoading] = useState(false)
+  const [sharedError, setSharedError] = useState('')
+  const [newSharedTask, setNewSharedTask] = useState('')
+  const [inviteLink, setInviteLink] = useState('')
+  const [inviteBusy, setInviteBusy] = useState(false)
+  const [inviteCopied, setInviteCopied] = useState(false)
+
 
   useEffect(() => {
     let cancelled = false
@@ -95,6 +110,143 @@ function App({ onSignOut }: { onSignOut?: () => void }) {
     return () => { cancelled = true }
   }, [])
 
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadCoupleData() {
+      if (!supabase) return
+      setSharedLoading(true)
+
+      const { data: { user }, error: userError } = await supabase.auth.getUser()
+      if (userError || !user) {
+        if (!cancelled) {
+          setSharedError('Não foi possível identificar sua conta.')
+          setSharedLoading(false)
+        }
+        return
+      }
+
+      if (!cancelled) setCurrentUserId(user.id)
+
+      const { data: membership, error: membershipError } = await supabase
+        .from('couple_members')
+        .select('couple_id')
+        .eq('user_id', user.id)
+        .limit(1)
+        .maybeSingle()
+
+      if (cancelled) return
+      if (membershipError || !membership) {
+        setSharedError(membershipError?.message || 'Seu espaço compartilhado ainda não foi encontrado.')
+        setSharedLoading(false)
+        return
+      }
+
+      setCoupleId(membership.couple_id)
+
+      const [coupleResult, membersResult, tasksResult] = await Promise.all([
+        supabase.from('couples').select('name').eq('id', membership.couple_id).single(),
+        supabase.from('couple_members').select('user_id, role').eq('couple_id', membership.couple_id),
+        supabase.from('tasks').select('id, title, due_at, is_completed')
+          .eq('couple_id', membership.couple_id).order('created_at', { ascending: false }),
+      ])
+
+      if (cancelled) return
+
+      if (coupleResult.data?.name) setCoupleName(coupleResult.data.name)
+      if (membersResult.data) setCoupleMembers(membersResult.data)
+      if (tasksResult.error) {
+        setSharedError('Erro ao carregar tarefas compartilhadas: ' + tasksResult.error.message)
+      } else {
+        setSharedTasks((tasksResult.data || []).map(task => ({
+          id: task.id,
+          title: task.title,
+          due_at: task.due_at,
+          done: task.is_completed,
+        })))
+      }
+
+      setSharedLoading(false)
+    }
+
+    loadCoupleData()
+    return () => { cancelled = true }
+  }, [])
+
+  async function createSharedInvite() {
+    if (!supabase || !coupleId) return
+    setInviteBusy(true)
+    setSharedError('')
+
+    const { data: token, error } = await supabase.rpc('create_couple_invite', {
+      p_couple_id: coupleId,
+    })
+
+    if (error || !token) {
+      setSharedError('Não foi possível gerar o convite: ' + (error?.message || 'Erro desconhecido'))
+      setInviteBusy(false)
+      return
+    }
+
+    const link = `${window.location.origin}/?invite=${token}`
+    setInviteLink(link)
+
+    try {
+      await navigator.clipboard.writeText(link)
+      setInviteCopied(true)
+    } catch {
+      setInviteCopied(false)
+    }
+
+    setInviteBusy(false)
+  }
+
+  async function addSharedTask(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const title = newSharedTask.trim()
+    if (!supabase || !coupleId || !currentUserId || !title) return
+
+    setSharedError('')
+    const { data, error } = await supabase.from('tasks').insert({
+      created_by: currentUserId,
+      couple_id: coupleId,
+      title,
+    }).select('id, title, due_at, is_completed').single()
+
+    if (error) {
+      setSharedError('Não foi possível salvar a tarefa: ' + error.message)
+      return
+    }
+
+    setSharedTasks(current => [{
+      id: data.id,
+      title: data.title,
+      due_at: data.due_at,
+      done: data.is_completed,
+    }, ...current])
+    setNewSharedTask('')
+  }
+
+  async function toggleSharedTask(id: string) {
+    const task = sharedTasks.find(item => item.id === id)
+    if (!task || !supabase) return
+
+    const nextDone = !task.done
+    const { error } = await supabase.from('tasks').update({
+      is_completed: nextDone,
+      updated_at: new Date().toISOString(),
+    }).eq('id', id)
+
+    if (error) {
+      setSharedError('Não foi possível atualizar a tarefa: ' + error.message)
+      return
+    }
+
+    setSharedTasks(current => current.map(item =>
+      item.id === id ? { ...item, done: nextDone } : item
+    ))
+  }
 
   const today = new Intl.DateTimeFormat('pt-BR', {
     weekday: 'long',
@@ -282,6 +434,118 @@ function App({ onSignOut }: { onSignOut?: () => void }) {
         </header>
 
         <div className="dashboard">
+          {active === 'Together' ? (
+            <section className="together-page">
+              <div className="together-page-header">
+                <div>
+                  <span className="section-kicker">YOUR LIFE TOGETHER</span>
+                  <h1>{coupleName}<span className="heading-dot">.</span></h1>
+                  <p>Um espaço privado para construir e organizar a vida juntos.</p>
+                </div>
+                <span className="live-label"><span /> PRIVATE SPACE</span>
+              </div>
+
+              <div className="together-welcome-card">
+                <div className="together-welcome-copy">
+                  <span className="hero-tag"><Heart size={14} /> SHARED SPACE</span>
+                  <h2>Dois caminhos.<br />Um futuro em comum.</h2>
+                  <p>Planos, tarefas e objetivos que vocês constroem lado a lado.</p>
+                </div>
+                <div className="together-member-list">
+                  {coupleMembers.map((member) => (
+                    <div className="together-member" key={member.user_id}>
+                      <div className="together-member-avatar">{member.user_id === currentUserId ? 'D' : 'A'}</div>
+                      <div>
+                        <strong>{member.user_id === currentUserId ? 'Você' : 'Ana Clara'}</strong>
+                        <span>{member.role === 'owner' ? 'Administrador' : 'Membro'}</span>
+                      </div>
+                      <Check size={16} />
+                    </div>
+                  ))}
+                  {coupleMembers.length < 2 && (
+                    <div className="together-pending">
+                      <UserPlus size={18} />
+                      <span>Aguardando Ana Clara entrar no espaço</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="together-action-grid">
+                <section className="panel together-invite-panel">
+                  <div className="panel-header">
+                    <div>
+                      <span className="section-kicker">INVITE YOUR PERSON</span>
+                      <h3>Convide para o OUR</h3>
+                    </div>
+                    <UserPlus size={19} className="muted-icon" />
+                  </div>
+                  <p>Gere um link privado para Ana Clara entrar no espaço compartilhado com a própria conta.</p>
+                  <button className="primary-button" onClick={createSharedInvite} disabled={inviteBusy || coupleMembers.length >= 2}>
+                    {inviteBusy ? 'Gerando convite...' : <><UserPlus size={16} /> Gerar convite</>}
+                  </button>
+                  {inviteLink && (
+                    <div className="together-invite-link">
+                      <input readOnly value={inviteLink} aria-label="Link de convite" />
+                      <button onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText(inviteLink)
+                          setInviteCopied(true)
+                        } catch {
+                          setSharedError('Selecione e copie o link manualmente.')
+                        }
+                      }}>
+                        {inviteCopied ? <Check size={16} /> : <Copy size={16} />}
+                        {inviteCopied ? 'Copiado' : 'Copiar'}
+                      </button>
+                    </div>
+                  )}
+                  <span className="together-note">O convite expira em sete dias e só pode ser usado uma vez.</span>
+                </section>
+
+                <section className="panel together-members-panel">
+                  <div className="panel-header">
+                    <div>
+                      <span className="section-kicker">YOUR PRIVATE CIRCLE</span>
+                      <h3>Membros do espaço</h3>
+                    </div>
+                    <Heart size={19} className="muted-icon" />
+                  </div>
+                  <strong className="together-member-count">{coupleMembers.length}<small> / 2 pessoas</small></strong>
+                  <div className="together-progress"><span style={{ width: `${Math.min(coupleMembers.length / 2 * 100, 100)}%` }} /></div>
+                  <p>{coupleMembers.length >= 2 ? 'O espaço de vocês está completo.' : 'Seu espaço está pronto para receber a Ana Clara.'}</p>
+                </section>
+              </div>
+
+              <section className="panel together-tasks-panel">
+                <div className="panel-header">
+                  <div>
+                    <span className="section-kicker">PLAN TOGETHER</span>
+                    <h3>Tarefas compartilhadas</h3>
+                  </div>
+                  <span className="together-task-total">{sharedTasks.filter(task => task.done).length} / {sharedTasks.length} concluídas</span>
+                </div>
+                <form className="together-task-form" onSubmit={addSharedTask}>
+                  <input value={newSharedTask} onChange={event => setNewSharedTask(event.target.value)} placeholder="O que vocês precisam fazer juntos?" />
+                  <button type="submit" disabled={!newSharedTask.trim()}><Plus size={17} /> Adicionar</button>
+                </form>
+                <div className="task-list">
+                  {sharedTasks.map(task => (
+                    <button className={`task-row ${task.done ? 'task-done' : ''}`} key={task.id} onClick={() => toggleSharedTask(task.id)}>
+                      <span className="task-check">{task.done && <CircleCheck size={18} />}</span>
+                      <span className="task-title">{task.title}</span>
+                      <span className="task-time"><Clock3 size={13} /> {formatTaskTime(task.due_at)}</span>
+                    </button>
+                  ))}
+                  {sharedLoading && <p className="empty-state">Carregando espaço compartilhado...</p>}
+                  {!sharedLoading && sharedTasks.length === 0 && <p className="empty-state">Nenhuma tarefa compartilhada ainda. Criem a primeira juntos.</p>}
+                </div>
+              </section>
+
+              {sharedError && <p className="auth-feedback auth-error" role="alert">{sharedError}</p>}
+            </section>
+          ) : (
+          <>
           <section className="welcome-section">
             <div>
               <span className="eyebrow"><span className="status-dot" /> YOUR SPACE, YOUR LIFE</span>
@@ -444,6 +708,8 @@ function App({ onSignOut }: { onSignOut?: () => void }) {
             <span>OUR<span className="heading-dot">.</span> <span className="footer-muted">PERSONAL & COUPLE OS</span></span>
             <span>YOUR LIFE. YOUR PLANS. YOUR WORLD.</span>
           </footer>
+          </>
+          )}
         </div>
       </main>
     </div>

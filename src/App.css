@@ -1514,3 +1514,38 @@ button:active {
 .couple-enter{display:flex;justify-content:center;align-items:center;gap:9px;width:100%;margin-top:17px;padding:14px;border:1px solid #c4a66a55;border-radius:9px;background:#c4a66a14;color:#e4cc9b;font-size:12px;font-weight:700}
 .profile-logout{display:grid;place-items:center;width:34px;height:34px;flex:none;border:1px solid #c4a66a25;border-radius:8px;background:#ffffff08;color:#b5a98f}
 .profile-logout:hover{border-color:#c4a66a80;color:#e2c58e}
+
+/* OUR — Shared space */
+.together-page{display:flex;flex-direction:column;gap:22px}
+.together-page-header{display:flex;align-items:flex-start;justify-content:space-between;gap:20px}
+.together-page-header h1{font-size:clamp(30px,4vw,42px);margin:9px 0 7px;letter-spacing:-1.5px}
+.together-page-header p,.together-invite-panel>p,.together-members-panel>p{color:var(--text-muted,#929292);font-size:13px;line-height:1.65;margin:0}
+.together-welcome-card{display:grid;grid-template-columns:1.2fr 1fr;gap:28px;align-items:center;padding:30px;border:1px solid rgba(196,166,106,.2);border-radius:18px;background:linear-gradient(120deg,rgba(196,166,106,.12),rgba(255,255,255,.025) 65%),#151515}
+.together-welcome-copy h2{font-size:clamp(25px,3vw,36px);line-height:1.12;letter-spacing:-1px;margin:15px 0 10px}
+.together-welcome-copy p{font-size:13px;color:var(--text-muted,#999);line-height:1.6;margin:0;max-width:390px}
+.together-member-list{display:flex;flex-direction:column;gap:12px}
+.together-member{display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid rgba(255,255,255,.07);border-radius:12px;background:rgba(0,0,0,.2)}
+.together-member-avatar{width:38px;height:38px;display:grid;place-items:center;border-radius:50%;background:rgba(196,166,106,.16);color:#d6bd8a;font-weight:700}
+.together-member>div:nth-child(2){display:flex;flex:1;flex-direction:column;gap:3px}
+.together-member strong{font-size:13px}.together-member span{font-size:11px;color:var(--text-muted,#929292)}
+.together-member>svg{color:#c4a66a}
+.together-pending{display:flex;align-items:center;gap:10px;padding:13px;color:var(--text-muted,#999);font-size:12px;border:1px dashed rgba(196,166,106,.28);border-radius:12px}
+.together-pending svg{color:#c4a66a}
+.together-action-grid{display:grid;grid-template-columns:1.2fr .8fr;gap:18px}
+.together-invite-panel,.together-members-panel,.together-tasks-panel{padding:22px}
+.together-invite-panel>p{margin:0 0 17px;max-width:540px}
+.together-invite-panel .primary-button{min-height:42px}
+.together-invite-link{display:flex;gap:8px;margin-top:14px}
+.together-invite-link input{min-width:0;flex:1;padding:10px 12px;border:1px solid rgba(255,255,255,.1);border-radius:9px;background:#101010;color:#c4a66a;font-size:11px}
+.together-invite-link button,.together-task-form button{display:flex;align-items:center;justify-content:center;gap:7px;padding:0 13px;border:1px solid rgba(196,166,106,.35);border-radius:9px;background:rgba(196,166,106,.12);color:#d9c18e;font-size:12px;font-weight:600;cursor:pointer}
+.together-note{display:block;margin-top:12px;color:var(--text-muted,#858585);font-size:10px}
+.together-member-count{display:block;margin:12px 0;font-size:30px;letter-spacing:-1px}
+.together-member-count small{font-size:12px;font-weight:400;color:var(--text-muted,#999);letter-spacing:0}
+.together-progress{height:5px;border-radius:8px;background:rgba(255,255,255,.08);overflow:hidden;margin-bottom:13px}
+.together-progress span{display:block;height:100%;border-radius:8px;background:#c4a66a;transition:width .2s}
+.together-task-total{font-size:11px;color:var(--text-muted,#999)}
+.together-task-form{display:flex;gap:9px;margin:16px 0}
+.together-task-form input{flex:1;min-width:0;padding:12px 14px;border:1px solid rgba(255,255,255,.1);border-radius:9px;background:#101010;color:inherit;font:inherit;font-size:13px;outline:none}
+.together-task-form input:focus{border-color:rgba(196,166,106,.55)}
+.together-task-form button:disabled{opacity:.45;cursor:not-allowed}
+@media(max-width:760px){.together-welcome-card,.together-action-grid{grid-template-columns:1fr}.together-welcome-card{padding:22px}.together-page-header{flex-direction:column}.together-task-form{flex-direction:column}.together-task-form button{min-height:42px}}
