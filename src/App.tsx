@@ -4,7 +4,7 @@ import {
   CheckSquare, Wallet, Target, House, Plane,
   Settings, Search, Bell, Plus, ArrowUpRight,
   Clock3, Sparkles, Menu, X, Copy, UserPlus, Check,
-  ChevronRight, CircleCheck, Zap, LogOut
+  ChevronRight, CircleCheck, Zap, LogOut, Trash2
 } from 'lucide-react'
 import { supabase } from './lib/supabase'
 import './App.css'
@@ -46,6 +46,9 @@ function App({ onSignOut }: { onSignOut?: () => void }) {
   const [tasks, setTasks] = useState<Task[]>([])
   const [tasksLoading, setTasksLoading] = useState(true)
   const [tasksError, setTasksError] = useState('')
+  const [newTaskTitle, setNewTaskTitle] = useState('')
+  const [taskFilter, setTaskFilter] = useState<'all' | 'pending' | 'done'>('all')
+  const [taskSaving, setTaskSaving] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
 
   const [search, setSearch] = useState('')
@@ -313,6 +316,52 @@ function App({ onSignOut }: { onSignOut?: () => void }) {
     }, ...current])
   }
 
+
+  async function createTask(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const title = newTaskTitle.trim()
+    if (!supabase || !title || taskSaving) return
+
+    setTaskSaving(true)
+    setTasksError('')
+    const { data: { user }, error: userError } = await supabase.auth.getUser()
+
+    if (userError || !user) {
+      setTasksError('Sua sessão expirou. Entre novamente.')
+      setTaskSaving(false)
+      return
+    }
+
+    const { data, error } = await supabase.from('tasks').insert({
+      created_by: user.id,
+      title,
+      couple_id: null,
+    }).select('id, title, due_at, is_completed').single()
+
+    if (error) {
+      setTasksError('Não foi possível salvar a tarefa: ' + error.message)
+    } else {
+      setTasks(current => [{
+        id: data.id,
+        title: data.title,
+        due_at: data.due_at,
+        done: data.is_completed,
+      }, ...current])
+      setNewTaskTitle('')
+    }
+    setTaskSaving(false)
+  }
+
+  async function deleteTask(id: string) {
+    if (!supabase) return
+    const { error } = await supabase.from('tasks').delete().eq('id', id)
+    if (error) {
+      setTasksError('Não foi possível excluir a tarefa: ' + error.message)
+      return
+    }
+    setTasks(current => current.filter(task => task.id !== id))
+  }
+
   const sidebar = (
     <aside className="sidebar">
       <div className="brand">
@@ -543,6 +592,51 @@ function App({ onSignOut }: { onSignOut?: () => void }) {
               </section>
 
               {sharedError && <p className="auth-feedback auth-error" role="alert">{sharedError}</p>}
+            </section>
+          ) : active === 'Tarefas' ? (
+            <section className="tasks-page">
+              <div className="tasks-page-header">
+                <div>
+                  <span className="section-kicker">PERSONAL WORKSPACE</span>
+                  <h1>Minhas tarefas<span className="heading-dot">.</span></h1>
+                  <p>Organize suas prioridades e acompanhe cada conquista.</p>
+                </div>
+                <span className="tasks-page-count">{tasks.filter(task => !task.done).length} pendentes</span>
+              </div>
+
+              <section className="panel tasks-manager-panel">
+                <form className="tasks-create-form" onSubmit={createTask}>
+                  <input value={newTaskTitle} onChange={event => setNewTaskTitle(event.target.value)} placeholder="Qual é a próxima tarefa?" aria-label="Nome da tarefa" maxLength={160} />
+                  <button className="primary-button" type="submit" disabled={!newTaskTitle.trim() || taskSaving}>
+                    <Plus size={17} /> {taskSaving ? 'Salvando...' : 'Adicionar tarefa'}
+                  </button>
+                </form>
+
+                <div className="tasks-manager-toolbar">
+                  <div className="tasks-filter-group">
+                    <button type="button" className={taskFilter === 'all' ? 'active' : ''} onClick={() => setTaskFilter('all')}>Todas <span>{tasks.length}</span></button>
+                    <button type="button" className={taskFilter === 'pending' ? 'active' : ''} onClick={() => setTaskFilter('pending')}>Pendentes <span>{tasks.filter(task => !task.done).length}</span></button>
+                    <button type="button" className={taskFilter === 'done' ? 'active' : ''} onClick={() => setTaskFilter('done')}>Concluídas <span>{completed}</span></button>
+                  </div>
+                </div>
+
+                <div className="tasks-manager-list">
+                  {tasks.filter(task => taskFilter === 'all' || (taskFilter === 'pending' ? !task.done : task.done)).map(task => (
+                    <div className={`tasks-manager-row ${task.done ? 'task-done' : ''}`} key={task.id}>
+                      <button type="button" className="task-row-main" onClick={() => toggleTask(task.id)} aria-label={task.done ? `Reabrir ${task.title}` : `Concluir ${task.title}`}>
+                        <span className="task-check">{task.done && <CircleCheck size={18} />}</span>
+                        <span className="task-title">{task.title}</span>
+                      </button>
+                      <span className="task-time"><Clock3 size={13} /> {formatTaskTime(task.due_at)}</span>
+                      <button type="button" className="task-delete-button" onClick={() => deleteTask(task.id)} aria-label={`Excluir ${task.title}`} title="Excluir tarefa"><Trash2 size={16} /></button>
+                    </div>
+                  ))}
+                  {tasksLoading && <p className="empty-state">Carregando suas tarefas...</p>}
+                  {!tasksLoading && tasks.length === 0 && <p className="empty-state">Você ainda não tem tarefas. Adicione a primeira acima.</p>}
+                  {!tasksLoading && tasks.length > 0 && tasks.filter(task => taskFilter === 'all' || (taskFilter === 'pending' ? !task.done : task.done)).length === 0 && <p className="empty-state">Não há tarefas nesta categoria.</p>}
+                  {tasksError && <p className="auth-feedback auth-error" role="alert">{tasksError}</p>}
+                </div>
+              </section>
             </section>
           ) : (
           <>

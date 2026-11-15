@@ -1549,3 +1549,36 @@ button:active {
 .together-task-form input:focus{border-color:rgba(196,166,106,.55)}
 .together-task-form button:disabled{opacity:.45;cursor:not-allowed}
 @media(max-width:760px){.together-welcome-card,.together-action-grid{grid-template-columns:1fr}.together-welcome-card{padding:22px}.together-page-header{flex-direction:column}.together-task-form{flex-direction:column}.together-task-form button{min-height:42px}}
+
+
+/* Personal tasks page */
+.tasks-page { display: grid; gap: 26px; }
+.tasks-page-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; }
+.tasks-page-header h1 { margin: 9px 0 7px; font-size: clamp(30px, 4vw, 42px); letter-spacing: -1.8px; }
+.tasks-page-header p { margin: 0; color: var(--muted, #92929b); }
+.tasks-page-count { color: #c4a66a; font-size: 13px; white-space: nowrap; }
+.tasks-manager-panel { padding: 22px; }
+.tasks-create-form { display: flex; gap: 12px; }
+.tasks-create-form input { flex: 1; min-width: 0; background: rgba(255,255,255,.035); border: 1px solid rgba(255,255,255,.09); border-radius: 12px; padding: 0 16px; color: inherit; outline: none; }
+.tasks-create-form input:focus { border-color: rgba(196,166,106,.65); }
+.tasks-manager-toolbar { display: flex; justify-content: space-between; align-items: center; margin: 24px 0 10px; border-bottom: 1px solid rgba(255,255,255,.07); }
+.tasks-filter-group { display: flex; gap: 7px; flex-wrap: wrap; }
+.tasks-filter-group button { display: flex; align-items: center; gap: 8px; border: 0; background: transparent; color: #92929b; padding: 11px 12px; cursor: pointer; border-bottom: 2px solid transparent; font: inherit; font-size: 13px; }
+.tasks-filter-group button.active { color: #d7bd87; border-bottom-color: #c4a66a; }
+.tasks-filter-group button span { font-size: 11px; opacity: .7; }
+.tasks-manager-list { display: grid; }
+.tasks-manager-row { display: flex; align-items: center; gap: 15px; min-height: 62px; border-bottom: 1px solid rgba(255,255,255,.055); }
+.task-row-main { display: flex; align-items: center; gap: 13px; flex: 1; min-width: 0; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; padding: 10px 0; }
+.task-row-main .task-title { overflow-wrap: anywhere; }
+.tasks-manager-row .task-time { display: flex; align-items: center; gap: 6px; color: #85858f; font-size: 12px; white-space: nowrap; }
+.task-delete-button { display: grid; place-items: center; width: 34px; height: 34px; border: 0; border-radius: 9px; background: transparent; color: #85858f; cursor: pointer; }
+.task-delete-button:hover { background: rgba(220,80,80,.1); color: #e28b8b; }
+@media (max-width: 640px) {
+  .tasks-page-header { align-items: flex-start; flex-direction: column; }
+  .tasks-manager-panel { padding: 15px; }
+  .tasks-create-form { flex-direction: column; }
+  .tasks-create-form input { min-height: 48px; }
+  .tasks-create-form .primary-button { justify-content: center; }
+  .tasks-manager-row { gap: 8px; }
+  .tasks-manager-row .task-time { font-size: 11px; }
+}
